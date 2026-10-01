@@ -18,12 +18,19 @@ export default {
       return respond(405, { error: "Method not allowed" }, { Allow: "GET, HEAD" });
     }
 
-    const values = url.searchParams.getAll("country");
+    const inverse = url.searchParams.has("not_country");
+    if (inverse && url.searchParams.has("country")) {
+      return respond(400, {
+        error: "Use either country or not_country, not both",
+      });
+    }
+    const parameter = inverse ? "not_country" : "country";
+    const values = url.searchParams.getAll(parameter);
     const target = (values[0] || "").trim().toUpperCase();
     if (values.length > 0 &&
         (values.length !== 1 || !/^[A-Z]{2}$/.test(target) || target === "XX")) {
       return respond(400, {
-        error: "Provide one two-letter country code, e.g. ?country=cn",
+        error: `Provide one two-letter country code, e.g. ?${parameter}=cn`,
       });
     }
 
@@ -49,6 +56,7 @@ export default {
     <p>Country: <strong>${hasCountry ? country : "未知"}</strong></p>
     <p>${hasCountry ? "由 Cloudflare 根据客户端出口 IP 判断。" : "Cloudflare 未提供可用的国家/地区信息。"}</p>
     <p>添加 <code>?country=cn</code> 可检测是否匹配指定国家/地区。</p>
+    <p>添加 <code>?not_country=cn</code> 可检测是否不属于指定国家/地区。</p>
   </main>
 </body>
 </html>`;
@@ -68,7 +76,7 @@ export default {
       });
     }
 
-    const match = country === target;
+    const match = inverse ? country !== target : country === target;
     return respond(match ? 200 : 403, { ip, country, target, match });
   },
 };

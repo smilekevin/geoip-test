@@ -17,20 +17,24 @@ npx wrangler deploy
 
 ## 请求和响应
 
-支持 GET 和 HEAD。保留 `/geoip-test` 路径，查询参数改为 `country`。
-`country` 使用两个英文字母的国家/地区代码，不区分大小写，
-例如 `cn`、`us`、`jp`、`hk`。每次请求只能传一个 `country` 参数。
+支持 GET 和 HEAD。保留 `/geoip-test` 路径，支持以下两种查询：
 
-直接访问 `/geoip-test`（不带 `country`）会返回 HTML 页面，显示
+- `?country=cn`：CN 客户端返回 200，非 CN 返回 403。
+- `?not_country=cn`：非 CN 客户端返回 200，CN 返回 403。
+
+两种参数均使用两个英文字母的国家/地区代码，不区分大小写，
+例如 `cn`、`us`、`jp`、`hk`。参数不能重复，也不能同时传入两种参数。
+
+直接访问 `/geoip-test`（不带 `country` 和 `not_country`）会返回 HTML 页面，显示
 `Country: CN` 等检测结果；无法获取国家/地区时显示“未知”并返回 503。
-显式传入空值 `?country=` 视为参数错误。旧的 `geoip` 参数不再用于匹配。
+显式传入空值 `?country=` 或 `?not_country=` 视为参数错误。旧的 `geoip` 参数不再用于匹配。
 独立 GeoIP 数据库匹配尚未实现，当前使用 Cloudflare 的国家/地区信息。
 
 | HTTP 状态码 | 含义 |
 | --- | --- |
-| 200 | 客户端国家/地区与 country 匹配，或成功显示国家/地区页面 |
-| 403 | 不匹配 |
-| 400 | country 为空、重复或格式错误（XX 不接受） |
+| 200 | 满足查询条件，或成功显示国家/地区页面 |
+| 403 | 不满足查询条件 |
+| 400 | 参数为空、重复、格式错误（XX 不接受），或同时传入 country 和 not_country |
 | 503 | Cloudflare 未提供可用的国家/地区信息 |
 | 404 | 路径不是 /geoip-test |
 | 405 | 方法不是 GET 或 HEAD |
@@ -40,6 +44,9 @@ npx wrangler deploy
 ```json
 {"ip":"203.0.113.1","country":"CN","target":"CN","match":true}
 ```
+
+`match` 表示是否满足本次查询条件。对于 `?not_country=cn`，非 CN 客户端
+的 `match` 为 `true`。无法识别国家/地区时，两种查询都返回 503，不视为满足反向条件。
 
 仅检查 HTTP 状态码：
 
